@@ -1,0 +1,31 @@
+# Source files
+src/
+*.test.ts
+*.spec.ts
+
+# Development files
+node_modules/
+tsconfig.json
+vitest.config.ts
+.eslintrc*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/

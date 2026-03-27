@@ -1,0 +1,71 @@
+{
+  "name": "@renderingvideo/sdk",
+  "version": "1.0.0",
+  "description": "Official Node.js SDK for the RenderingVideo API - Create videos programmatically",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "build:watch": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "renderingvideo",
+    "video",
+    "api",
+    "sdk",
+    "video-rendering",
+    "programmatic-video",
+    "video-generation",
+    "video-api",
+    "automated-video",
+    "video-automation"
+  ],
+  "author": "RenderingVideo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/renderingvideo/nodejs-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/renderingvideo/nodejs-sdk/issues"
+  },
+  "homepage": "https://docs.renderingvideo.com",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=4.7.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  },
+  "sideEffects": false,
+  "type": "module"
+}
