@@ -7,6 +7,7 @@ import {
   CreditsClient,
   RenderingVideoError,
   AuthenticationError,
+  InvalidApiKeyError,
   InsufficientCreditsError,
   ValidationError,
   NotFoundError,
@@ -29,9 +30,7 @@ describe('RenderingVideo SDK', () => {
     });
 
     it('should throw error for invalid API key format', () => {
-      expect(() => new RenderingVideo({ apiKey: 'invalid-key' })).toThrow(
-        'Invalid API key. API key should start with "sk-"'
-      );
+      expect(() => new RenderingVideo({ apiKey: 'invalid-key' })).toThrow(InvalidApiKeyError);
     });
 
     it('should throw error for missing API key', () => {
@@ -89,6 +88,127 @@ describe('RenderingVideo SDK', () => {
       const error = new AlreadyRenderingError('Task is already rendering');
       expect(error).toBeInstanceOf(RenderingVideoError);
       expect(error.code).toBe('ALREADY_RENDERING');
+    });
+  });
+
+  describe('Preview Client', () => {
+    it('should send the full schema directly when creating a preview', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: true,
+          tempId: 'temp_abc123',
+          previewUrl: 'https://video.renderingvideo.com/t/temp_abc123',
+          expiresIn: '7d',
+        }),
+      });
+
+      vi.stubGlobal('fetch', fetchMock);
+
+      const client = new RenderingVideo({
+        apiKey: 'sk-test-key',
+        baseUrl: 'https://api.example.com',
+      });
+      const config = {
+        meta: { version: '2.0.0', width: 1920, height: 1080 },
+        tracks: [{ clips: [{ type: 'text', text: 'Preview', start: 0, duration: 5 }] }],
+      };
+
+      try {
+        await client.preview.create(config);
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(fetchMock).toHaveBeenCalledWith(
+          'https://api.example.com/api/v1/preview',
+          expect.objectContaining({
+            method: 'POST',
+            body: JSON.stringify(config),
+          })
+        );
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+  });
+
+  describe('File Client', () => {
+    it('should search across pages when getting a file by id', async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            success: true,
+            files: [
+              { id: 'asset_001', name: 'one.png', url: 'https://example.com/one.png', type: 'image', mimeType: 'image/png', size: 1 },
+            ],
+            pagination: { page: 1, limit: 100, total: 101 },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            success: true,
+            files: [
+              { id: 'asset_101', name: 'target.png', url: 'https://example.com/target.png', type: 'image', mimeType: 'image/png', size: 1 },
+            ],
+            pagination: { page: 2, limit: 100, total: 101 },
+          }),
+        });
+
+      vi.stubGlobal('fetch', fetchMock);
+
+      const client = new RenderingVideo({
+        apiKey: 'sk-test-key',
+        baseUrl: 'https://api.example.com',
+      });
+
+      try {
+        const file = await client.files.get('asset_101');
+
+        expect(file?.id).toBe('asset_101');
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+  });
+
+  describe('API Error Mapping', () => {
+    it('should preserve the API validation error code', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          error: 'Invalid config',
+          code: 'INVALID_CONFIG',
+          details: { field: 'config' },
+        }),
+      });
+
+      vi.stubGlobal('fetch', fetchMock);
+
+      const client = new RenderingVideo({
+        apiKey: 'sk-test-key',
+        baseUrl: 'https://api.example.com',
+      });
+
+      try {
+        await expect(
+          client.video.create({
+            config: {
+              meta: { version: '2.0.0', width: 1920, height: 1080 },
+              tracks: [],
+            },
+          })
+        ).rejects.toMatchObject({
+          name: 'ValidationError',
+          code: 'INVALID_CONFIG',
+          details: { field: 'config', statusCode: 400 },
+        });
+      } finally {
+        vi.unstubAllGlobals();
+      }
     });
   });
 });

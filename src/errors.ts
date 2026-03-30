@@ -19,15 +19,23 @@ export class RenderingVideoError extends Error {
 }
 
 export class AuthenticationError extends RenderingVideoError {
-  constructor(message: string, details: Record<string, unknown> = {}) {
-    super(message, 'AUTHENTICATION_ERROR', details);
+  constructor(
+    message: string,
+    details: Record<string, unknown> = {},
+    code = 'AUTHENTICATION_ERROR'
+  ) {
+    super(message, code, details);
     this.name = 'AuthenticationError';
   }
 }
 
 export class InvalidApiKeyError extends RenderingVideoError {
-  constructor(message: string, details: Record<string, unknown> = {}) {
-    super(message, 'INVALID_API_KEY', details);
+  constructor(
+    message: string,
+    details: Record<string, unknown> = {},
+    code = 'INVALID_API_KEY'
+  ) {
+    super(message, code, details);
     this.name = 'InvalidApiKeyError';
   }
 }
@@ -40,8 +48,12 @@ export class InsufficientCreditsError extends RenderingVideoError {
 }
 
 export class ValidationError extends RenderingVideoError {
-  constructor(message: string, details: Record<string, unknown> = {}) {
-    super(message, 'VALIDATION_ERROR', details);
+  constructor(
+    message: string,
+    details: Record<string, unknown> = {},
+    code = 'VALIDATION_ERROR'
+  ) {
+    super(message, code, details);
     this.name = 'ValidationError';
   }
 }
@@ -54,8 +66,12 @@ export class NotFoundError extends RenderingVideoError {
 }
 
 export class RateLimitError extends RenderingVideoError {
-  constructor(message: string, details: Record<string, unknown> = {}) {
-    super(message, 'RATE_LIMITED', details);
+  constructor(
+    message: string,
+    details: Record<string, unknown> = {},
+    code = 'RATE_LIMITED'
+  ) {
+    super(message, code, details);
     this.name = 'RateLimitError';
   }
 }
@@ -68,22 +84,34 @@ export class AlreadyRenderingError extends RenderingVideoError {
 }
 
 export class UploadError extends RenderingVideoError {
-  constructor(message: string, details: Record<string, unknown> = {}) {
-    super(message, 'UPLOAD_FAILED', details);
+  constructor(
+    message: string,
+    details: Record<string, unknown> = {},
+    code = 'UPLOAD_FAILED'
+  ) {
+    super(message, code, details);
     this.name = 'UploadError';
   }
 }
 
 export class StorageLimitError extends RenderingVideoError {
-  constructor(message: string, details: Record<string, unknown> = {}) {
-    super(message, 'STORAGE_LIMIT_EXCEEDED', details);
+  constructor(
+    message: string,
+    details: Record<string, unknown> = {},
+    code = 'STORAGE_LIMIT_EXCEEDED'
+  ) {
+    super(message, code, details);
     this.name = 'StorageLimitError';
   }
 }
 
 export class RemoteError extends RenderingVideoError {
-  constructor(message: string, details: Record<string, unknown> = {}) {
-    super(message, 'REMOTE_ERROR', details);
+  constructor(
+    message: string,
+    details: Record<string, unknown> = {},
+    code = 'REMOTE_ERROR'
+  ) {
+    super(message, code, details);
     this.name = 'RemoteError';
   }
 }
@@ -100,11 +128,13 @@ export function handleApiError(
   // First check by error code
   switch (code) {
     case 'MISSING_API_KEY':
-    case 'INVALID_API_KEY':
-    case 'INVALID_API_KEY_FORMAT':
     case 'API_KEY_INACTIVE':
     case 'USER_NOT_FOUND':
-      return new AuthenticationError(message, { ...details, code, statusCode });
+      return new AuthenticationError(message, { ...details, statusCode }, code);
+
+    case 'INVALID_API_KEY':
+    case 'INVALID_API_KEY_FORMAT':
+      return new InvalidApiKeyError(message, { ...details, statusCode }, code);
 
     case 'INSUFFICIENT_CREDITS':
       return new InsufficientCreditsError(message, { ...details, code, statusCode });
@@ -113,7 +143,7 @@ export function handleApiError(
     case 'INVALID_CONFIG':
     case 'NO_FILES':
     case 'UNSUPPORTED_FILE_TYPE':
-      return new ValidationError(message, { ...details, code, statusCode });
+      return new ValidationError(message, { ...details, statusCode }, code);
 
     case 'NOT_FOUND':
       return new NotFoundError(message, { ...details, code, statusCode });
@@ -122,28 +152,28 @@ export function handleApiError(
       return new AlreadyRenderingError(message, { ...details, code, statusCode });
 
     case 'STORAGE_LIMIT_EXCEEDED':
-      return new StorageLimitError(message, { ...details, code, statusCode });
+      return new StorageLimitError(message, { ...details, statusCode }, code);
 
     case 'UPLOAD_FAILED':
-      return new UploadError(message, { ...details, code, statusCode });
+      return new UploadError(message, { ...details, statusCode }, code);
 
     case 'REMOTE_ERROR':
     case 'RENDER_TRIGGER_FAILED':
-      return new RemoteError(message, { ...details, code, statusCode });
+      return new RemoteError(message, { ...details, statusCode }, code);
   }
 
   // Fallback to status code mapping
   switch (statusCode) {
     case 401:
-      return new AuthenticationError(message, { ...details, code, statusCode });
+      return new AuthenticationError(message, { ...details, statusCode }, code);
     case 402:
       return new InsufficientCreditsError(message, { ...details, code, statusCode });
     case 400:
-      return new ValidationError(message, { ...details, code, statusCode });
+      return new ValidationError(message, { ...details, statusCode }, code);
     case 404:
       return new NotFoundError(message, { ...details, code, statusCode });
     case 429:
-      return new RateLimitError(message, { ...details, code, statusCode });
+      return new RateLimitError(message, { ...details, statusCode }, code);
     default:
       return new RenderingVideoError(message, code, { ...details, statusCode });
   }

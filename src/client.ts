@@ -25,7 +25,7 @@ import type {
   ConvertPreviewOptions,
   RenderPreviewOptions,
 } from './types';
-import { handleApiError, RenderingVideoError } from './errors';
+import { handleApiError, InvalidApiKeyError, RenderingVideoError } from './errors';
 
 const DEFAULT_BASE_URL = 'https://renderingvideo.com';
 const DEFAULT_TIMEOUT = 30000;
@@ -339,8 +339,22 @@ export class FileClient {
    * ```
    */
   async get(fileId: string): Promise<UploadedFile | null> {
-    const { files } = await this.list({ limit: 100 });
-    return files.find(f => f.id === fileId) || null;
+    let page = 1;
+
+    while (true) {
+      const response = await this.list({ page, limit: 100 });
+      const found = response.files.find(f => f.id === fileId);
+
+      if (found) {
+        return found;
+      }
+
+      if ((response.pagination.page * response.pagination.limit) >= response.pagination.total) {
+        return null;
+      }
+
+      page += 1;
+    }
   }
 }
 
@@ -365,6 +379,7 @@ export class PreviewClient {
 
   /**
    * Create a temporary preview link (7 days validity, no credits consumed)
+   * Sends the full video schema as the request body.
    * @example
    * ```typescript
    * const preview = await client.preview.create({
@@ -375,7 +390,7 @@ export class PreviewClient {
    * ```
    */
   async create(config: VideoConfig): Promise<PreviewResult> {
-    return this.request<PreviewResult>('POST', '/api/v1/preview', { config });
+    return this.request<PreviewResult>('POST', '/api/v1/preview', config);
   }
 
   /**
@@ -482,7 +497,7 @@ export class RenderingVideo {
     }
 
     if (!this.apiKey.startsWith('sk-')) {
-      throw new Error('Invalid API key. API key should start with "sk-"');
+      throw new InvalidApiKeyError('Invalid API key. API key should start with "sk-"');
     }
   }
 
