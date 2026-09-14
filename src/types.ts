@@ -1,5 +1,4 @@
 import type { Assets, Gradient } from './schema';
-import type { RequestAuth } from './agent';
 /**
  * RenderingVideo Node.js SDK - Type Definitions
  */
@@ -202,8 +201,7 @@ export interface DeleteTaskResult {
 // ==================== Client Options ====================
 
 export interface ClientOptions {
-  apiKey?: string;
-  auth?: RequestAuth;
+  apiKey: string;
   baseUrl?: string;
   timeout?: number;
 }
@@ -281,12 +279,3 @@ export interface Capabilities {
   features: Record<string, boolean | string>;
   docs: Record<string, string>;
 }
-export interface AgentContext {
-  success: boolean;
-  api_version: string;
-  app: { name: string };
-  credential: { key_id: string; key_name: string; session_id: string; expires_at: string; scopes: string[] };
-  device: { id: string; name: string; platform: string; arch: string | null; agent_version: string | null };
-}
-export interface AuditListOptions { page?: number; pageSize?: number; riskLevel?: string; allKeys?: boolean }
-export interface AuditList { success: boolean; items: Record<string, unknown>[]; total: number }

@@ -1,5 +1,4 @@
-import type { RequestAuth } from './agent';
-import type { Capabilities, AgentContext, AuditListOptions, AuditList } from './types';
+import type { Capabilities } from './types';
 /**
  * RenderingVideo Node.js SDK - Main Client
  */
@@ -37,7 +36,7 @@ const DEFAULT_TIMEOUT = 30000;
  */
 async function request<T>(
   baseUrl: string,
-  apiKey: string | RequestAuth,
+  apiKey: string,
   timeout: number,
   method: string,
   endpoint: string,
@@ -62,7 +61,7 @@ async function request<T>(
       method,
       redirect: 'error',
       headers: {
-        ...(typeof apiKey === 'string' ? { Authorization: `Bearer ${apiKey}` } : await apiKey.headers(method, url)),
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: body ? JSON.stringify(body) : undefined,
@@ -100,7 +99,7 @@ async function request<T>(
 export class VideoClient {
   constructor(
     private readonly baseUrl: string,
-    private readonly apiKey: string | RequestAuth,
+    private readonly apiKey: string,
     private readonly timeout: number
   ) {}
 
@@ -215,7 +214,7 @@ export class VideoClient {
 export class FileClient {
   constructor(
     private readonly baseUrl: string,
-    private readonly apiKey: string | RequestAuth,
+    private readonly apiKey: string,
     private readonly timeout: number
   ) {}
 
@@ -252,7 +251,7 @@ export class FileClient {
         method: 'POST',
         redirect: 'error',
         headers: {
-          ...(typeof this.apiKey === 'string' ? { Authorization: `Bearer ${this.apiKey}` } : await this.apiKey.headers('POST', new URL(`${this.baseUrl}/api/v1/upload`))),
+          Authorization: `Bearer ${this.apiKey}`,
         },
         body: formData,
         signal: controller.signal,
@@ -371,7 +370,7 @@ export class FileClient {
 export class PreviewClient {
   constructor(
     private readonly baseUrl: string,
-    private readonly apiKey: string | RequestAuth,
+    private readonly apiKey: string,
     private readonly timeout: number
   ) {}
 
@@ -481,7 +480,6 @@ export class PreviewClient {
  */
 export class RenderingVideo {
   private readonly apiKey: string;
-  private readonly credential: string | RequestAuth;
   private readonly baseUrl: string;
   private readonly timeout: number;
 
@@ -498,21 +496,17 @@ export class RenderingVideo {
       this.timeout = options?.timeout ?? DEFAULT_TIMEOUT;
     } else {
       this.apiKey = apiKeyOrOptions.apiKey || "";
-      this.baseUrl = apiKeyOrOptions.baseUrl ?? apiKeyOrOptions.auth?.baseUrl ?? DEFAULT_BASE_URL;
+      this.baseUrl = apiKeyOrOptions.baseUrl ?? DEFAULT_BASE_URL;
       this.timeout = apiKeyOrOptions.timeout ?? DEFAULT_TIMEOUT;
     }
 
-    const auth = typeof apiKeyOrOptions === 'string' ? options?.auth : apiKeyOrOptions.auth;
-    if (auth && this.apiKey) throw new Error('Provide apiKey or auth, not both');
-    this.credential = auth || this.apiKey;
     this.baseUrl = this.baseUrl.replace(/\/+$/, '');
-    if (auth && auth.baseUrl !== this.baseUrl) throw new Error('Agent auth and client baseUrl must match');
 
-    if (!auth && !this.apiKey) {
+    if (!this.apiKey) {
       throw new Error('API key is required');
     }
 
-    if (!auth && !this.apiKey.startsWith('sk-')) {
+    if (!this.apiKey.startsWith('sk-')) {
       throw new InvalidApiKeyError('Invalid API key. API key should start with "sk-"');
     }
   }
@@ -522,7 +516,7 @@ export class RenderingVideo {
    */
   get video(): VideoClient {
     if (!this._video) {
-      this._video = new VideoClient(this.baseUrl, this.credential, this.timeout);
+      this._video = new VideoClient(this.baseUrl, this.apiKey, this.timeout);
     }
     return this._video;
   }
@@ -532,7 +526,7 @@ export class RenderingVideo {
    */
   get files(): FileClient {
     if (!this._files) {
-      this._files = new FileClient(this.baseUrl, this.credential, this.timeout);
+      this._files = new FileClient(this.baseUrl, this.apiKey, this.timeout);
     }
     return this._files;
   }
@@ -542,7 +536,7 @@ export class RenderingVideo {
    */
   get preview(): PreviewClient {
     if (!this._preview) {
-      this._preview = new PreviewClient(this.baseUrl, this.credential, this.timeout);
+      this._preview = new PreviewClient(this.baseUrl, this.apiKey, this.timeout);
     }
     return this._preview;
   }
@@ -551,19 +545,14 @@ export class RenderingVideo {
    * Credits API operations
    */
   get credits(): CreditsClient {
-    return new CreditsClient(this.baseUrl, this.credential, this.timeout);
+    return new CreditsClient(this.baseUrl, this.apiKey, this.timeout);
   }
 
   /**
    * Get masked API key for logging
    */
   async getCapabilities(): Promise<Capabilities> {
-    return request(this.baseUrl, this.credential, this.timeout, 'GET', '/api/v1/capabilities');
-  }
-
-  get agent(): AgentClient {
-    if (typeof this.credential === 'string') throw new Error('Agent operations require AgentAuth');
-    return new AgentClient(this.baseUrl, this.credential, this.timeout);
+    return request(this.baseUrl, this.apiKey, this.timeout, 'GET', '/api/v1/capabilities');
   }
 
   get apiKeyPreview(): string {
@@ -586,7 +575,7 @@ export class RenderingVideo {
 export class CreditsClient {
   constructor(
     private readonly baseUrl: string,
-    private readonly apiKey: string | RequestAuth,
+    private readonly apiKey: string,
     private readonly timeout: number
   ) {}
 
@@ -616,16 +605,3 @@ export class CreditsClient {
 }
 
 export default RenderingVideo;
-
-export class AgentClient {
-  constructor(private readonly baseUrl: string, private readonly auth: RequestAuth, private readonly timeout: number) {}
-  context(): Promise<AgentContext> {
-    return request(this.baseUrl, this.auth, this.timeout, 'GET', '/api/agent/v1/context');
-  }
-  audit(options: AuditListOptions = {}): Promise<AuditList> {
-    return request(this.baseUrl, this.auth, this.timeout, 'GET', '/api/agent/v1/audit', undefined, {
-      page: options.page, pageSize: options.pageSize, riskLevel: options.riskLevel,
-      allKeys: options.allKeys === undefined ? undefined : String(options.allKeys),
-    });
-  }
-}

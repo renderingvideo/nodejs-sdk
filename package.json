@@ -1,6 +1,6 @@
 {
   "name": "@renderingvideo/sdk",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Official Node.js SDK for the RenderingVideo API - Create videos programmatically",
   "main": "dist/index.cjs",
   "module": "dist/index.js",

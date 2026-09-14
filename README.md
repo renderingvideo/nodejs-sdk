@@ -3,40 +3,23 @@
 Official Node.js SDK for the RenderingVideo API. Create videos programmatically with ease.
 
 
-## API and Agent Access in 1.1
+## API updates in 1.1.1
+
+Use your own `sk-...` API key from Settings → API Keys. This public SDK accesses resources owned by that account. Administrator Agent Access is internal and is not part of this SDK.
 
 ```typescript
-import { readFileSync } from 'node:fs';
-import { RenderingVideo, AgentAuth } from '@renderingvideo/sdk';
-
-// Generate once with AgentAuth.generateDevice(), persist securely, then reuse it.
-const device = JSON.parse(readFileSync(process.env.RENDERINGVIDEO_DEVICE_FILE!, 'utf8'));
-const auth = new AgentAuth({ agentKey: process.env.RENDERINGVIDEO_AGENT_KEY!, device });
-const client = new RenderingVideo({ auth });
-console.log(await client.agent.context());
-console.log(await client.agent.audit({ pageSize: 20 }));
+import { RenderingVideo } from '@renderingvideo/sdk';
+const client = new RenderingVideo({ apiKey: process.env.RENDERINGVIDEO_API_KEY! });
 console.log(await client.getCapabilities());
 ```
 
-Ordinary `new RenderingVideo({ apiKey: 'sk-...' })` remains supported. Agent mode exchanges an `ak_` key for an `at_` token, refreshes before expiration and signs each request. Supply a persistent device identity; keep its PKCS8 private key private. `baseUrl` may be supplied to AgentAuth for HTTPS origins or localhost. No external runtime packages are needed.
+`VideoSchema`, `Assets`, `Gradient`, and the `Schema` type namespace expose renderer schema types. The permissive `VideoConfig` remains supported.
 
-```typescript
-const task = await client.video.create({ config, title: 'Launch', category: 'marketing', metadata: { campaign: 'launch' } });
-const tasks = await client.video.list({ category: 'all' });
-await client.preview.convert(tempId, { metadata: { campaign: 'launch' } });
-await client.preview.render(tempId, { metadata: { campaign: 'launch' }, numWorkers: 2 });
-```
+Task creation accepts `title`, `category`, and `metadata`. Listing defaults to category `api`; `category=all` includes website tasks owned by the same account. Preview conversion and rendering preserve metadata. Render quality follows schema dimensions. See [enhanced-schema.json](examples/enhanced-schema.json) and the [API reference](https://renderingvideo.com/docs/api-reference.md).
 
-`VideoSchema`, `Assets`, `Gradient`, and the `Schema` type namespace expose the renderer's full schema, including SVG, subtitles, models, layouts, templates and animation types. The existing permissive `VideoConfig` remains available. See [enhanced-schema.json](examples/enhanced-schema.json).
+Release 1.1.1 removes the administrator authentication and context/audit clients mistakenly included in 1.1.0. Ordinary user API-key calls and the enhanced video APIs remain supported.
 
-Context and capability discovery require `system:read`. Audit reads this key's events with `audit:read`; `allKeys=true` needs `audit:read:all`. Device proofs cover the credential hash, method, exact path/query, timestamp and nonce; HTTPS protects the body. Blocked devices and revoked credentials are rejected. SDKs do not automatically replay mutating requests after ambiguous failures; `invalidate()` explicitly discards a cached token.
-
-Task listing still defaults to category `api`; `category=all` includes tasks created through the website. Render quality is derived from schema dimensions, not a `quality` request option. Capability/category additions require the matching website API deployment. API keys and existing endpoints continue working on older deployments; capability discovery may return 404 there.
-
-[API reference](https://renderingvideo.com/docs/api-reference.md) · [Agent Access protocol](https://renderingvideo.com/docs/agent-access.md)
-
-Cross-language integration: in the website checkout, run `RENDERINGVIDEO_SDK_ROOT=/absolute/path/to/renderingvideo-clients pnpm exec tsx --test scripts/sdk-contract.test.ts` after building Node and installing the Python/PHP test dependencies. It runs local HTTP fixtures and validates SDK signatures with the application's verifier, without contacting production.
-
+Cross-language integration checks run from the website checkout with `RENDERINGVIDEO_SDK_ROOT=/absolute/path/to/renderingvideo-clients pnpm exec tsx --test scripts/sdk-contract.test.ts`. They use local HTTP fixtures without production credentials or paid renders.
 
 ## Installation
 
