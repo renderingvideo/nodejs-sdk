@@ -92,3 +92,10 @@ export {
 // Default export
 import { RenderingVideo as RenderingVideoClient } from './client';
 export default RenderingVideoClient;
+
+export { AgentAuth } from './agent';
+export { AgentClient } from './client';
+export type { AgentDevice, RequestAuth } from './agent';
+export type { Capabilities, AgentContext, AuditListOptions, AuditList } from './types';
+export type * as Schema from './schema';
+export type { VideoSchema, Assets, AssetReference, Gradient, ClipType, TemplateType } from './schema';

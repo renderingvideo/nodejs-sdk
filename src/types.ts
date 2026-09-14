@@ -1,3 +1,5 @@
+import type { Assets, Gradient } from './schema';
+import type { RequestAuth } from './agent';
 /**
  * RenderingVideo Node.js SDK - Type Definitions
  */
@@ -9,16 +11,22 @@ export interface VideoMeta {
   width: number;
   height: number;
   fps?: number;
-  background?: string;
+  background?: string | Gradient;
+  title?: string;
+  description?: string;
+  author?: string;
+  tags?: string[];
+  createdAt?: string;
 }
 
 export interface VideoConfig {
   meta: VideoMeta;
   tracks: Track[];
-  assets?: Record<string, Asset>;
+  assets?: Assets | Record<string, Asset>;
 }
 
 export interface Track {
+  id?: string;
   clips: Clip[];
 }
 
@@ -30,8 +38,8 @@ export interface Clip {
 }
 
 export interface Asset {
-  type: 'image' | 'video' | 'audio' | 'font';
-  src: string;
+  type?: 'image' | 'video' | 'audio' | 'font' | 'model' | 'svg' | 'subtitle';
+  src?: string;
   [key: string]: unknown;
 }
 
@@ -42,6 +50,8 @@ export type TaskStatus = 'created' | 'rendering' | 'completed' | 'failed';
 export interface Task {
   success: boolean;
   taskId: string;
+  title?: string | null;
+  category?: string | null;
   videoTaskId?: string;
   renderTaskId?: string;
   previewUrl?: string;
@@ -124,7 +134,9 @@ export interface Credits {
 export interface PreviewResult {
   success: boolean;
   tempId: string;
-  previewUrl: string;
+  previewUrl?: string;
+  url?: string;
+  playerUrl?: string;
   viewerUrl?: string;
   expiresIn: string;
   note?: string;
@@ -156,6 +168,8 @@ export interface ConvertPreviewResult {
 }
 
 export interface RenderPreviewResult {
+  videoUrl?: string;
+  alreadyRendered?: boolean;
   success: boolean;
   tempId: string;
   converted: boolean;
@@ -188,7 +202,8 @@ export interface DeleteTaskResult {
 // ==================== Client Options ====================
 
 export interface ClientOptions {
-  apiKey: string;
+  apiKey?: string;
+  auth?: RequestAuth;
   baseUrl?: string;
   timeout?: number;
 }
@@ -197,6 +212,8 @@ export interface ClientOptions {
 
 export interface CreateVideoOptions {
   config: VideoConfig;
+  title?: string;
+  category?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -204,6 +221,7 @@ export interface ListTasksOptions {
   page?: number;
   limit?: number;
   status?: TaskStatus;
+  category?: string;
 }
 
 export interface RenderOptions {
@@ -223,10 +241,12 @@ export interface UploadOptions {
 }
 
 export interface ConvertPreviewOptions {
+  metadata?: Record<string, unknown>;
   category?: string;
 }
 
 export interface RenderPreviewOptions {
+  metadata?: Record<string, unknown>;
   category?: string;
   webhookUrl?: string;
   numWorkers?: number;
@@ -252,3 +272,21 @@ export interface WebhookPayload {
   error?: string | null;
   timestamp: string;
 }
+
+export interface Capabilities {
+  success: boolean;
+  apiVersion: string;
+  schema: { version: string; clipTypes: string[]; animationTypes: string[]; easingFunctions: string[]; transitionTypes: string[]; keyframeProperties: string[] };
+  render: { qualitySelection: string; qualities: { quality: string; label: string; shortEdge: number; creditMultiplier: number }[] };
+  features: Record<string, boolean | string>;
+  docs: Record<string, string>;
+}
+export interface AgentContext {
+  success: boolean;
+  api_version: string;
+  app: { name: string };
+  credential: { key_id: string; key_name: string; session_id: string; expires_at: string; scopes: string[] };
+  device: { id: string; name: string; platform: string; arch: string | null; agent_version: string | null };
+}
+export interface AuditListOptions { page?: number; pageSize?: number; riskLevel?: string; allKeys?: boolean }
+export interface AuditList { success: boolean; items: Record<string, unknown>[]; total: number }

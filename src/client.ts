@@ -1,3 +1,5 @@
+import type { RequestAuth } from './agent';
+import type { Capabilities, AgentContext, AuditListOptions, AuditList } from './types';
 /**
  * RenderingVideo Node.js SDK - Main Client
  */
@@ -35,7 +37,7 @@ const DEFAULT_TIMEOUT = 30000;
  */
 async function request<T>(
   baseUrl: string,
-  apiKey: string,
+  apiKey: string | RequestAuth,
   timeout: number,
   method: string,
   endpoint: string,
@@ -58,8 +60,9 @@ async function request<T>(
   try {
     const response = await fetch(url.toString(), {
       method,
+      redirect: 'error',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        ...(typeof apiKey === 'string' ? { Authorization: `Bearer ${apiKey}` } : await apiKey.headers(method, url)),
         'Content-Type': 'application/json',
       },
       body: body ? JSON.stringify(body) : undefined,
@@ -68,7 +71,7 @@ async function request<T>(
 
     const data = (await response.json()) as Record<string, unknown>;
 
-    if (!response.ok) {
+    if (!response.ok || data.success === false) {
       throw handleApiError(
         response.status,
         (data.error as string) || 'Unknown error',
@@ -97,7 +100,7 @@ async function request<T>(
 export class VideoClient {
   constructor(
     private readonly baseUrl: string,
-    private readonly apiKey: string,
+    private readonly apiKey: string | RequestAuth,
     private readonly timeout: number
   ) {}
 
@@ -125,7 +128,9 @@ export class VideoClient {
    */
   async create(options: CreateVideoOptions): Promise<Task> {
     const body: Record<string, unknown> = { config: options.config };
-    if (options.metadata) body.metadata = options.metadata;
+    if (options.metadata !== undefined) body.metadata = options.metadata;
+    if (options.title !== undefined) body.title = options.title;
+    if (options.category !== undefined) body.category = options.category;
 
     return this.request<Task>('POST', '/api/v1/video', body);
   }
@@ -142,6 +147,7 @@ export class VideoClient {
       page: options?.page,
       limit: options?.limit,
       status: options?.status,
+      category: options?.category,
     });
   }
 
@@ -154,7 +160,7 @@ export class VideoClient {
    * ```
    */
   async get(taskId: string): Promise<Task> {
-    return this.request<Task>('GET', `/api/v1/video/${taskId}`);
+    return this.request<Task>('GET', `/api/v1/video/${encodeURIComponent(taskId)}`);
   }
 
   /**
@@ -166,7 +172,7 @@ export class VideoClient {
    * ```
    */
   async delete(taskId: string): Promise<DeleteTaskResult> {
-    return this.request<DeleteTaskResult>('DELETE', `/api/v1/video/${taskId}`);
+    return this.request<DeleteTaskResult>('DELETE', `/api/v1/video/${encodeURIComponent(taskId)}`);
   }
 
   /**
@@ -182,9 +188,9 @@ export class VideoClient {
   async render(taskId: string, options?: RenderOptions): Promise<Task> {
     const body: Record<string, unknown> = {};
     if (options?.webhookUrl) body.webhook_url = options.webhookUrl;
-    if (options?.numWorkers) body.num_workers = options.numWorkers;
+    if (options?.numWorkers !== undefined) body.num_workers = options.numWorkers;
 
-    return this.request<Task>('POST', `/api/v1/video/${taskId}/render`, body);
+    return this.request<Task>('POST', `/api/v1/video/${encodeURIComponent(taskId)}/render`, body);
   }
 
   /**
@@ -209,7 +215,7 @@ export class VideoClient {
 export class FileClient {
   constructor(
     private readonly baseUrl: string,
-    private readonly apiKey: string,
+    private readonly apiKey: string | RequestAuth,
     private readonly timeout: number
   ) {}
 
@@ -244,8 +250,9 @@ export class FileClient {
     try {
       const response = await fetch(`${this.baseUrl}/api/v1/upload`, {
         method: 'POST',
+        redirect: 'error',
         headers: {
-          Authorization: `Bearer ${this.apiKey}`,
+          ...(typeof this.apiKey === 'string' ? { Authorization: `Bearer ${this.apiKey}` } : await this.apiKey.headers('POST', new URL(`${this.baseUrl}/api/v1/upload`))),
         },
         body: formData,
         signal: controller.signal,
@@ -253,7 +260,7 @@ export class FileClient {
 
       const data = (await response.json()) as Record<string, unknown>;
 
-      if (!response.ok) {
+      if (!response.ok || data.success === false) {
         throw handleApiError(
           response.status,
           (data.error as string) || 'Unknown error',
@@ -286,7 +293,7 @@ export class FileClient {
    */
   async uploadBuffer(buffer: Buffer, filename: string, mimeType: string): Promise<UploadResult> {
     const formData = new FormData();
-    const blob = new Blob([buffer], { type: mimeType });
+    const blob = new Blob([new Uint8Array(buffer)], { type: mimeType });
     formData.append('file', blob, filename);
     return this.upload(formData);
   }
@@ -301,7 +308,7 @@ export class FileClient {
    */
   async uploadFile(file: Blob | File, filename?: string): Promise<UploadResult> {
     const formData = new FormData();
-    formData.append('file', file, filename || (file instanceof File ? file.name : 'file'));
+    formData.append('file', file, filename || (typeof File !== 'undefined' && file instanceof File ? file.name : 'file'));
     return this.upload(formData);
   }
 
@@ -328,7 +335,7 @@ export class FileClient {
    * ```
    */
   async delete(fileId: string): Promise<DeleteFileResult> {
-    return this.request<DeleteFileResult>('DELETE', `/api/v1/files/${fileId}`);
+    return this.request<DeleteFileResult>('DELETE', `/api/v1/files/${encodeURIComponent(fileId)}`);
   }
 
   /**
@@ -364,7 +371,7 @@ export class FileClient {
 export class PreviewClient {
   constructor(
     private readonly baseUrl: string,
-    private readonly apiKey: string,
+    private readonly apiKey: string | RequestAuth,
     private readonly timeout: number
   ) {}
 
@@ -401,7 +408,7 @@ export class PreviewClient {
    * ```
    */
   async get(tempId: string): Promise<PreviewConfig> {
-    return this.request<PreviewConfig>('GET', `/api/v1/preview/${tempId}`);
+    return this.request<PreviewConfig>('GET', `/api/v1/preview/${encodeURIComponent(tempId)}`);
   }
 
   /**
@@ -412,7 +419,7 @@ export class PreviewClient {
    * ```
    */
   async delete(tempId: string): Promise<DeletePreviewResult> {
-    return this.request<DeletePreviewResult>('DELETE', `/api/v1/preview/${tempId}`);
+    return this.request<DeletePreviewResult>('DELETE', `/api/v1/preview/${encodeURIComponent(tempId)}`);
   }
 
   /**
@@ -426,8 +433,9 @@ export class PreviewClient {
   async convert(tempId: string, options?: ConvertPreviewOptions): Promise<ConvertPreviewResult> {
     const body: Record<string, unknown> = {};
     if (options?.category) body.category = options.category;
+    if (options?.metadata !== undefined) body.metadata = options.metadata;
 
-    return this.request<ConvertPreviewResult>('POST', `/api/v1/preview/${tempId}/convert`, body);
+    return this.request<ConvertPreviewResult>('POST', `/api/v1/preview/${encodeURIComponent(tempId)}/convert`, body);
   }
 
   /**
@@ -443,10 +451,11 @@ export class PreviewClient {
   async render(tempId: string, options?: RenderPreviewOptions): Promise<RenderPreviewResult> {
     const body: Record<string, unknown> = {};
     if (options?.category) body.category = options.category;
+    if (options?.metadata !== undefined) body.metadata = options.metadata;
     if (options?.webhookUrl) body.webhook_url = options.webhookUrl;
-    if (options?.numWorkers) body.num_workers = options.numWorkers;
+    if (options?.numWorkers !== undefined) body.num_workers = options.numWorkers;
 
-    return this.request<RenderPreviewResult>('POST', `/api/v1/preview/${tempId}/render`, body);
+    return this.request<RenderPreviewResult>('POST', `/api/v1/preview/${encodeURIComponent(tempId)}/render`, body);
   }
 }
 
@@ -472,6 +481,7 @@ export class PreviewClient {
  */
 export class RenderingVideo {
   private readonly apiKey: string;
+  private readonly credential: string | RequestAuth;
   private readonly baseUrl: string;
   private readonly timeout: number;
 
@@ -487,16 +497,22 @@ export class RenderingVideo {
       this.baseUrl = options?.baseUrl ?? DEFAULT_BASE_URL;
       this.timeout = options?.timeout ?? DEFAULT_TIMEOUT;
     } else {
-      this.apiKey = apiKeyOrOptions.apiKey;
-      this.baseUrl = apiKeyOrOptions.baseUrl ?? DEFAULT_BASE_URL;
+      this.apiKey = apiKeyOrOptions.apiKey || "";
+      this.baseUrl = apiKeyOrOptions.baseUrl ?? apiKeyOrOptions.auth?.baseUrl ?? DEFAULT_BASE_URL;
       this.timeout = apiKeyOrOptions.timeout ?? DEFAULT_TIMEOUT;
     }
 
-    if (!this.apiKey) {
+    const auth = typeof apiKeyOrOptions === 'string' ? options?.auth : apiKeyOrOptions.auth;
+    if (auth && this.apiKey) throw new Error('Provide apiKey or auth, not both');
+    this.credential = auth || this.apiKey;
+    this.baseUrl = this.baseUrl.replace(/\/+$/, '');
+    if (auth && auth.baseUrl !== this.baseUrl) throw new Error('Agent auth and client baseUrl must match');
+
+    if (!auth && !this.apiKey) {
       throw new Error('API key is required');
     }
 
-    if (!this.apiKey.startsWith('sk-')) {
+    if (!auth && !this.apiKey.startsWith('sk-')) {
       throw new InvalidApiKeyError('Invalid API key. API key should start with "sk-"');
     }
   }
@@ -506,7 +522,7 @@ export class RenderingVideo {
    */
   get video(): VideoClient {
     if (!this._video) {
-      this._video = new VideoClient(this.baseUrl, this.apiKey, this.timeout);
+      this._video = new VideoClient(this.baseUrl, this.credential, this.timeout);
     }
     return this._video;
   }
@@ -516,7 +532,7 @@ export class RenderingVideo {
    */
   get files(): FileClient {
     if (!this._files) {
-      this._files = new FileClient(this.baseUrl, this.apiKey, this.timeout);
+      this._files = new FileClient(this.baseUrl, this.credential, this.timeout);
     }
     return this._files;
   }
@@ -526,7 +542,7 @@ export class RenderingVideo {
    */
   get preview(): PreviewClient {
     if (!this._preview) {
-      this._preview = new PreviewClient(this.baseUrl, this.apiKey, this.timeout);
+      this._preview = new PreviewClient(this.baseUrl, this.credential, this.timeout);
     }
     return this._preview;
   }
@@ -535,12 +551,21 @@ export class RenderingVideo {
    * Credits API operations
    */
   get credits(): CreditsClient {
-    return new CreditsClient(this.baseUrl, this.apiKey, this.timeout);
+    return new CreditsClient(this.baseUrl, this.credential, this.timeout);
   }
 
   /**
    * Get masked API key for logging
    */
+  async getCapabilities(): Promise<Capabilities> {
+    return request(this.baseUrl, this.credential, this.timeout, 'GET', '/api/v1/capabilities');
+  }
+
+  get agent(): AgentClient {
+    if (typeof this.credential === 'string') throw new Error('Agent operations require AgentAuth');
+    return new AgentClient(this.baseUrl, this.credential, this.timeout);
+  }
+
   get apiKeyPreview(): string {
     return this.apiKey.length > 12
       ? `${this.apiKey.slice(0, 8)}...${this.apiKey.slice(-4)}`
@@ -561,7 +586,7 @@ export class RenderingVideo {
 export class CreditsClient {
   constructor(
     private readonly baseUrl: string,
-    private readonly apiKey: string,
+    private readonly apiKey: string | RequestAuth,
     private readonly timeout: number
   ) {}
 
@@ -591,3 +616,16 @@ export class CreditsClient {
 }
 
 export default RenderingVideo;
+
+export class AgentClient {
+  constructor(private readonly baseUrl: string, private readonly auth: RequestAuth, private readonly timeout: number) {}
+  context(): Promise<AgentContext> {
+    return request(this.baseUrl, this.auth, this.timeout, 'GET', '/api/agent/v1/context');
+  }
+  audit(options: AuditListOptions = {}): Promise<AuditList> {
+    return request(this.baseUrl, this.auth, this.timeout, 'GET', '/api/agent/v1/audit', undefined, {
+      page: options.page, pageSize: options.pageSize, riskLevel: options.riskLevel,
+      allKeys: options.allKeys === undefined ? undefined : String(options.allKeys),
+    });
+  }
+}

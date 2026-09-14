@@ -1,6 +1,6 @@
 {
   "name": "@renderingvideo/sdk",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Official Node.js SDK for the RenderingVideo API - Create videos programmatically",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
@@ -15,7 +15,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "examples"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
